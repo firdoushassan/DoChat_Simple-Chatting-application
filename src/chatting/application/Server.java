@@ -7,25 +7,31 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Objects;
+import java.net.*;
 
-public class Server extends JFrame implements ActionListener {
+public class Server implements ActionListener {
 
     JTextField textarea1;
     JPanel area1;
-    Box vertical = Box.createVerticalBox();
+    static Box vertical = Box.createVerticalBox();
+    static DataOutputStream dout;
+
+    static JFrame f = new JFrame();
 
     Server(){
 
-        setLayout(null);
-
+        f.setLayout(null);
         JPanel p1 = new JPanel();
         p1.setBackground(new Color(161, 22, 196));
         p1.setBounds(0,0,450,70);
         p1.setLayout(null);
-        add(p1);
+        f.add(p1);
 
         //Adding back button and exit action with it
         ImageIcon arrow = new ImageIcon
@@ -80,14 +86,18 @@ public class Server extends JFrame implements ActionListener {
 
         //Text area panel
         area1 = new JPanel();
-        area1.setBounds(5,75,440,575);
-        add(area1);
+        area1.setLayout(new BoxLayout(area1, BoxLayout.Y_AXIS));
+        JScrollPane scrollPane = new JScrollPane(area1);
+        scrollPane.setBounds(5, 75, 440, 575);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        f.add(scrollPane);
 
         //Text writing area
         textarea1 = new JTextField();
         textarea1.setBounds(5,655, 310,40);
         textarea1.setFont(new Font("SANS_SERIF", Font.PLAIN, 16));
-        add(textarea1);
+        f.add(textarea1);
 
         //Adding  button
         JButton send = new JButton("Send");
@@ -96,15 +106,15 @@ public class Server extends JFrame implements ActionListener {
         send.setForeground(Color.WHITE);
         send.setFont(new Font("SANS_SERIF", Font.BOLD, 16));
         send.addActionListener(this);
-        add(send);
+        f.add(send);
 
 
 
-        setSize(450, 700);
-        setLocation(150, 15);
-        setUndecorated(true);
-        getContentPane().setBackground(Color.WHITE);
-        setVisible(true);
+        f.setSize(450, 700);
+        f.setLocation(150, 15);
+        f.setUndecorated(true);
+        f.getContentPane().setBackground(Color.WHITE);
+        f.setVisible(true);
     }
 
     @Override
@@ -119,22 +129,33 @@ public class Server extends JFrame implements ActionListener {
         vertical.add(Box.createVerticalStrut(12));
         area1.add(vertical, BorderLayout.PAGE_START);
 
+        try {
+            dout.writeUTF(txtOut);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
         textarea1.setText("");
 
-        repaint();
-        invalidate();
-        validate();
+        f.repaint();
+        f.invalidate();
+        f.validate();
     }
 
     public static JPanel formatLabel(String txtOut){
         JPanel panel = new JPanel();
-
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        JLabel output = new JLabel(txtOut);
+
+        JTextArea output = new JTextArea(txtOut);
         output.setFont(new Font("Tahoma", Font.PLAIN, 16));
         output.setBackground(new Color(240, 200, 250));
         output.setOpaque(true);
-        output.setBorder(new EmptyBorder(15, 15, 15, 50));
+        output.setBorder(new EmptyBorder(10, 10, 10, 50));
+        output.setLineWrap(true);
+        output.setWrapStyleWord(true);
+        output.setEditable(false);
+        output.setFocusable(false);
+//        output.setSize(150, Short.MAX_VALUE);
+        output.setPreferredSize(output.getPreferredSize());
         panel.add(output);
 
         Calendar cal = Calendar.getInstance();
@@ -147,8 +168,30 @@ public class Server extends JFrame implements ActionListener {
         return panel;
     }
 
+
     public static void main(String[] args) {
         new Server();
+
+        try{
+            ServerSocket skt = new ServerSocket(4001);
+            while(true){
+                Socket s = skt.accept();
+                DataInputStream din = new DataInputStream(s.getInputStream());
+                dout = new DataOutputStream(s.getOutputStream());
+
+                while(true){
+                    String msg = din.readUTF();
+                    JPanel panel = formatLabel(msg);
+
+                    JPanel receiveTxt = new JPanel(new BorderLayout());
+                    receiveTxt.add(panel, BorderLayout.LINE_START);
+                    vertical.add((receiveTxt));
+                    f.validate();
+                }
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }
     }
 
 }
